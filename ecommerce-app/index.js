@@ -40,26 +40,66 @@ const Product = mongoose.model("Product", productSchema);
 const Cart = mongoose.model("Cart", cartSchema);
 const Order = mongoose.model("Order", orderSchema);
 
-app.post("/user", async(req, resp) => {
+app.post("/user", async (req, resp) => {
     const user = await User.create(req.body);
     resp.json(user);
 });
 
-app.post("/product", async(req, resp) => {
+app.post("/product", async (req, resp) => {
     const product = await Product.create(req.body);
     resp.json(product);
 });
 
-app.post("/addtocart", async(req, resp) => {
-    const {userId, productId, quantity} = req.body;
-    let cart = await Cart.findOne({userId});
-    if(!cart){
+app.post("/addtocart", async (req, resp) => {
+    const { userId, productId, quantity } = req.body;
+    let cart = await Cart.findOne({ userId });
+    if (!cart) {
         cart = await Cart.create({
             userId,
-            items: ({productId, quantity}),
+            items: ({ productId, quantity }),
         });
-    } else{
-        cart.items.push({productId, quantity});
+    } else {
+        cart.items.push({ productId, quantity });
         await cart.save();
+    }
+});
+
+app.post("/placeorder", (req, resp) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try{
+        const {userId} = req.body;
+        const cart = await cart.findOne({userId}.session(session));
+        if(!cart) throw new Error("Cart is Empty");
+
+        let total=0;
+        for(let item of cart.items){
+            const product = await Product.findById(items.productId).session(session);
+            if(!product || product.stock < item.quantity){
+                throw new Error ("Stock Out");
+            }
+            product.stock -= item.quantity;
+            await product.save({session});
+            total += product.price*item.quantity;
+        }
+        const order = await Order.create(
+            [
+                {
+                    userId, 
+                    items: cart.items,
+                    totalAmount: total,
+                    status: "Order Placed",
+                },   
+            ],
+            {session},
+        );
+        await Cart.deleteOne({userId}).session(session);
+        await session.commitTransaction();
+        resp.json(order);
+    } catch(err){
+        await session.shortTransaction();
+        resp.status(500).send(err.message);
+    } finally{
+        session.endSession();
     }
 });
