@@ -62,9 +62,10 @@ app.post("/addtocart", async (req, resp) => {
         cart.items.push({ productId, quantity });
         await cart.save();
     }
+    resp.send("Add to cart");
 });
 
-app.post("/placeorder", (req, resp) => {
+app.post("/placeorder", async(req, resp) => {
     const session = await mongoose.startSession();
     session.startTransaction();
     try{
@@ -103,3 +104,13 @@ app.post("/placeorder", (req, resp) => {
         session.endSession();
     }
 });
+
+app.get("/orders/:userId", async(req, resp) => {
+    const orders = await Order.find({userId: req.params.id});
+    resp.json(orders);
+});
+
+app.listen(9600, () => {
+    console.log("Server started on 9600");
+});
+
