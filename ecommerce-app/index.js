@@ -56,7 +56,7 @@ app.post("/addtocart", async (req, resp) => {
     if (!cart) {
         cart = await Cart.create({
             userId,
-            items: ({ productId, quantity }),
+            items: [{ productId, quantity }],
         });
     } else {
         cart.items.push({ productId, quantity });
@@ -75,7 +75,7 @@ app.post("/placeorder", async(req, resp) => {
 
         let total=0;
         for(let item of cart.items){
-            const product = await Product.findById(items.productId).session(session);
+            const product = await Product.findById(item.productId).session(session);
             if(!product || product.stock < item.quantity){
                 throw new Error ("Stock Out");
             }
